@@ -1,0 +1,41 @@
+<idea-plugin>
+    <id>com.github.wconfig.wconfig-helper</id>
+    <name>wconfig-helper</name>
+    <vendor email="lupeng10@58.com" url="https://ishare.58corp.com/personal/article?id=174322">lupeng10</vendor>
+
+    <description><![CDATA[
+    Help 58 developers quickly open WConfig and edit it in intellij idea, and show the changes when they submit config<br>
+    ]]></description>
+
+    <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
+         on how to target different products -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.modules.java</depends>
+    <depends>com.intellij.properties</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+        <applicationService serviceInterface="com.github.wconfig.helper.service.ApplicationService"
+                            serviceImplementation="com.github.wconfig.helper.service.impl.ApplicationServiceImpl"/>
+        <!-- 启动的时候运行，去拉取所有的namespace -->
+        <postStartupActivity implementation="com.github.wconfig.helper.service.PullWConfigAllNamespaceStartupActivity"/>
+        <!-- 在java文件中解析namespace关键字的通用类-->
+        <!-- 持久化配置信息 -->
+        <applicationService serviceImplementation="com.github.wconfig.helper.Settings"/>
+        <!-- 配置界面 -->
+        <applicationConfigurable groupId="tools" instance="com.github.wconfig.helper.views.settings.WConfigHelperConfigurable"/>
+        <!-- command + 点击 跳转 -->
+        <gotoDeclarationHandler implementation="com.github.wconfig.helper.WConfigGotoEditorHandler" />
+    </extensions>
+
+    <actions>
+        <action class="com.github.wconfig.helper.WConfigShowDiffAction"
+                id="WConfigShowDiffAction" text="WConfigShowDiffAction"
+                description="WConfigShowDiffAction">
+            <add-to-group group-id="FileMenu" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="alt w"/>
+        </action>
+    </actions>
+</idea-plugin>
