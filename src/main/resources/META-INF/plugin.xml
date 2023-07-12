@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.github.wconfig.wconfig-helper</id>
+    <id>com.github.config.wconfig-helper</id>
     <name>wconfig-helper</name>
     <vendor email="lupeng10@58.com" url="https://ishare.58corp.com/personal/article?id=174322">lupeng10</vendor>
 
@@ -17,21 +17,21 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
-        <applicationService serviceInterface="com.github.wconfig.helper.service.ApplicationService"
-                            serviceImplementation="com.github.wconfig.helper.service.impl.ApplicationServiceImpl"/>
+        <applicationService serviceInterface="com.github.config.helper.service.ApplicationService"
+                            serviceImplementation="com.github.config.helper.service.impl.ApplicationServiceImpl"/>
         <!-- 启动的时候运行，去拉取所有的namespace -->
-        <postStartupActivity implementation="com.github.wconfig.helper.service.PullWConfigAllNamespaceStartupActivity"/>
+        <postStartupActivity implementation="com.github.config.helper.service.PullConfigAllNamespaceStartupActivity"/>
         <!-- 在java文件中解析namespace关键字的通用类-->
         <!-- 持久化配置信息 -->
-        <applicationService serviceImplementation="com.github.wconfig.helper.Settings"/>
+        <applicationService serviceImplementation="com.github.config.helper.Settings"/>
         <!-- 配置界面 -->
-        <applicationConfigurable groupId="tools" instance="com.github.wconfig.helper.views.settings.WConfigHelperConfigurable"/>
+        <applicationConfigurable groupId="tools" instance="com.github.config.helper.views.settings.ConfigHelperConfigurable"/>
         <!-- command + 点击 跳转 -->
-        <gotoDeclarationHandler implementation="com.github.wconfig.helper.WConfigGotoEditorHandler" />
+        <gotoDeclarationHandler implementation="com.github.config.helper.ConfigGotoEditorHandler" />
     </extensions>
 
     <actions>
-        <action class="com.github.wconfig.helper.WConfigShowDiffAction"
+        <action class="com.github.config.helper.ConfigShowDiffAction"
                 id="WConfigShowDiffAction" text="WConfigShowDiffAction"
                 description="WConfigShowDiffAction">
             <add-to-group group-id="FileMenu" anchor="first"/>
