@@ -1,10 +1,10 @@
 <idea-plugin>
-    <id>com.github.config.wconfig-helper</id>
-    <name>wconfig-helper</name>
-    <vendor email="lupeng10@58.com" url="https://ishare.58corp.com/personal/article?id=174322">lupeng10</vendor>
+    <id>com.github.config.wconfig.helper</id>
+    <name>config-helper</name>
+    <vendor email="617388617@qq.com" url="https://ishare.58corp.com/personal/article?id=174322">lupeng</vendor>
 
     <description><![CDATA[
-    Help 58 developers quickly open WConfig and edit it in intellij idea, and show the changes when they submit config<br>
+    Help developers quickly open Config and edit it in intellij idea, and show the changes when they submit config<br>
     ]]></description>
 
     <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
@@ -32,8 +32,8 @@
 
     <actions>
         <action class="com.github.config.helper.ConfigShowDiffAction"
-                id="WConfigShowDiffAction" text="WConfigShowDiffAction"
-                description="WConfigShowDiffAction">
+                id="ConfigShowDiffAction" text="ConfigShowDiffAction"
+                description="ConfigShowDiffAction">
             <add-to-group group-id="FileMenu" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="alt w"/>
         </action>
