@@ -17,15 +17,14 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * SettingsPanelView
  *
- * @author: lupeng10
- * @create: 2023-05-24 14:19
+ * @author lupeng10
+ * @create 2023-05-24 14:19
  */
 public class SettingsPanelView {
 
     private static final Logger logger = Logger.getInstance(SettingsPanelView.class);
 
     private JPanel main;
-    private JTextField cookiesField;
     private JTextField oaNameField;
     private JButton buildIndexButton;
     private JTextField searchKeys;
@@ -33,10 +32,11 @@ public class SettingsPanelView {
     private JTextField grayIp;
     private JCheckBox enableDefaultGroup;
     private JComboBox<String> defaultGroupComboBox;
+    private JTextField clusterKeyNameField;
+    private JTextField groupListField;
 
 
-    public SettingsPanelView(String cookie, String oaName) {
-        cookiesField.setText(cookie);
+    public SettingsPanelView(String oaName) {
         oaNameField.setText(oaName);
         buildIndexButton.addActionListener(e -> {
             try {
@@ -67,13 +67,14 @@ public class SettingsPanelView {
 
     public boolean isModified() {
         Settings settings = LocalStorage.getSetting();
-        return !StringUtils.equals(cookiesField.getText(), settings.getCookie())
-                || !StringUtils.equals(oaNameField.getText(), settings.getOaName())
+        return !StringUtils.equals(oaNameField.getText(), settings.getOaName())
                 || !StringUtils.equals(searchKeys.getText(), settings.getSearchKeys())
                 || grayEnableCheckBox.isSelected() != settings.isEnableGray()
                 || !StringUtils.equals(grayIp.getText(), settings.getGrayIp())
                 || enableDefaultGroup.isSelected() != settings.isEnableDefaultGroup()
                 || !StringUtils.equals(this.getGroup(), settings.getDefaultGroup())
+                || !StringUtils.equals(this.getClusterKeyNameField(), settings.getClusterKeyName())
+                || !StringUtils.equals(this.getGroupListField(), settings.getGroupList())
                 ;
     }
 
@@ -104,7 +105,6 @@ public class SettingsPanelView {
         this.enableDefaultGroup.setSelected(enableDefaultGroup);
     }
 
-
     public JPanel getMainComponent() {
         return this.main;
     }
@@ -125,9 +125,6 @@ public class SettingsPanelView {
         this.grayIp.setText(ip);
     }
 
-    public String getCookiesValue() {
-        return cookiesField.getText();
-    }
 
     public String getOaNameValue() {
         return oaNameField.getText();
@@ -141,9 +138,24 @@ public class SettingsPanelView {
         this.searchKeys.setText(searchKeys);
     }
 
+    public String getClusterKeyNameField() {
+        return this.clusterKeyNameField.getText();
+    }
+
+    public void setClusterKeyNameField(String clusterKeyNameField) {
+        this.clusterKeyNameField.setText(clusterKeyNameField);
+    }
+
+    public String getGroupListField() {
+        return this.groupListField.getText();
+    }
+
+    public void setGroupListField(String groupListField) {
+        this.groupListField.setText(groupListField);
+    }
+
     public void reset() {
         Settings settings = LocalStorage.getSetting();
-        cookiesField.setText(settings.getCookie());
         oaNameField.setText(settings.getOaName());
         searchKeys.setText(settings.getSearchKeys());
         grayIp.setText(settings.getGrayIp());
@@ -152,5 +164,9 @@ public class SettingsPanelView {
 
         grayEnableCheckBox.setSelected(settings.isEnableGray());
         grayIp.setText(settings.getGrayIp());
+
+        clusterKeyNameField.setToolTipText(settings.getClusterKeyName());
+        groupListField.setToolTipText(settings.getGroupList());
+
     }
 }

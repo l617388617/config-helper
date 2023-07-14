@@ -26,6 +26,8 @@ public class Settings implements PersistentStateComponent<Settings> {
     private String grayIp;
     private boolean enableDefaultGroup;
     private String defaultGroup;
+    private String clusterKeyName;
+    private String groupList;
 
 
     @Override

@@ -15,8 +15,8 @@ import javax.swing.*;
  * WConfigHelperConfigurable
  * setting 窗口中的配置界面
  *
- * @author: lupeng10
- * @create: 2023-05-24 11:31
+ * @author lupeng10
+ * @create 2023-05-24 11:31
  */
 public class ConfigHelperConfigurable implements SearchableConfigurable {
 
@@ -24,7 +24,7 @@ public class ConfigHelperConfigurable implements SearchableConfigurable {
 
     public ConfigHelperConfigurable() {
         Settings settings = LocalStorage.getSetting();
-        this.panelView = new SettingsPanelView(settings.getCookie(), settings.getOaName());
+        this.panelView = new SettingsPanelView(settings.getOaName());
 
         this.panelView.setEnableDefaultGroup(settings.isEnableDefaultGroup());
         this.panelView.setGroup(settings.getDefaultGroup());
@@ -66,7 +66,6 @@ public class ConfigHelperConfigurable implements SearchableConfigurable {
     @Override
     public void apply() {
         Settings settings = LocalStorage.getSetting();
-        settings.setCookie(panelView.getCookiesValue());
         settings.setOaName(panelView.getOaNameValue());
 
         settings.setEnableDefaultGroup(panelView.isEnableDefaultGroup());
@@ -76,5 +75,7 @@ public class ConfigHelperConfigurable implements SearchableConfigurable {
         settings.setGrayIp(panelView.getGrayIp());
 
         settings.setSearchKeys(panelView.getSearchKeys());
+        settings.setClusterKeyName(panelView.getClusterKeyNameField());
+        settings.setGroupList(panelView.getGroupListField());
     }
 }
