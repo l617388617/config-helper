@@ -16,6 +16,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -60,6 +61,12 @@ public class ConfigInfoManager {
                 .filter(c -> StringUtils.equals(c.getNamespace(), namespace))
                 .filter(predicate)
                 .findFirst();
+    }
+
+    public List<ConfigInfo> getConfigInfoByNamespace(String namespace) {
+        return infoSet.stream()
+                .filter(c -> StringUtils.equals(c.getNamespace(), namespace))
+                .collect(Collectors.toList());
     }
 
     public VirtualFile generateVirtualFile(Project project, ConfigInfo configInfo) {

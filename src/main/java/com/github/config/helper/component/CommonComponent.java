@@ -1,44 +1,25 @@
 package com.github.config.helper.component;
 
-import com.github.config.helper.component.http.ConfigCall4OpenApi;
-import com.github.config.helper.component.http.ItemKeyValueDto;
-import com.github.config.helper.component.http.res4openapi.GetMasterRes;
 import com.github.config.helper.localstorage.ConfigContentType;
-import com.github.config.helper.localstorage.ConfigEntity;
 import com.github.config.helper.localstorage.LocalStorage;
-import com.github.config.helper.localstorage.PropertiesConfigEntity;
-import com.github.config.helper.localstorage.TextConfigEntity;
 import com.google.common.base.Joiner;
-import com.intellij.ide.scratch.ScratchFileService;
-import com.intellij.ide.scratch.ScratchRootType;
-import com.intellij.json.json5.Json5Language;
-import com.intellij.lang.Language;
-import com.intellij.lang.properties.PropertiesLanguage;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationDisplayType;
 import com.intellij.notification.NotificationGroup;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * CommonComponent
@@ -76,93 +57,93 @@ public class CommonComponent {
         grayIp2GrayBranchName.get(ip).add(configFileInfo);
     }
 
-    public static Map<ConfigEntity, VirtualFile> buildIndex(List<ConfigEntity> configEntities, boolean isClear) {
-        if (isClear) {
-            // 清空重建本地config
-            removeLocalConfig();
-        }
-        Map<ConfigEntity, VirtualFile> ans = new HashMap<>();
-        String vfWsPath = null;
-        for (ConfigEntity entity : configEntities) {
-            allGroup.add(entity.getGroupName());
-            cluster2GroupsMap.putIfAbsent(entity.getClusterName(), new TreeSet<>());
-            cluster2GroupsMap.get(entity.getClusterName()).add(entity.getGroupName());
-
-            String content;
-            if (StringUtils.equals(entity.getFormat(), ConfigContentType.properties.name())) {
-                PropertiesConfigEntity configEntity = (PropertiesConfigEntity) entity;
-                content = configEntity.getContent().entrySet().stream()
-                        .map(e -> e.getKey() + "=" + e.getValue())
-                        .collect(Collectors.joining("\n"));
-            } else {
-                TextConfigEntity textConfig = (TextConfigEntity) entity;
-                content = textConfig.getContent();
-            }
-
-            ConfigEntity.Gray gray = entity.getGray();
-            if (gray != null) {
-                List<String> grayIps = gray.getGrayIps();
-                for (String grayIp : grayIps) {
-                    String filePath = CommonComponent.generateFilePathWithoutWs(entity.getClusterName(), entity.getGroupName(),
-                            entity.getNamespace(), grayIp, ConfigContentType.fromName(entity.getFormat()), false);
-                    try {
-                        Language language;
-                        if (StringUtils.equals(entity.getFormat(), ConfigContentType.properties.name())) {
-                            language = PropertiesLanguage.INSTANCE;
-                        } else {
-                            language = Json5Language.INSTANCE;
-                        }
-                        VirtualFile scratchFile = ScratchRootType.getInstance().createScratchFile(LocalStorage.getProject(),
-                                "wconfigws" + File.separator + filePath,
-                                language, content, ScratchFileService.Option.create_if_missing);
-                        if (vfWsPath == null && scratchFile != null) {
-                            vfWsPath = StringUtils.substringBefore(scratchFile.getPath(), "wconfigws") + "wconfigws";
-                            ans.put(entity, scratchFile);
-                        }
-
-                        grayIp2GrayBranchName.putIfAbsent(grayIp, new HashSet<>());
-                        ConfigFileInfo configFileInfo = new ConfigFileInfo();
-                        configFileInfo.setNamespace(entity.getNamespace());
-                        configFileInfo.setGroup(entity.getGroupName());
-                        configFileInfo.setCluster(entity.getClusterName());
-                        configFileInfo.setGrayBranchName(gray.getGrayBranchName());
-                        configFileInfo.setFullPath(vfWsPath);
-                        grayIp2GrayBranchName.get(grayIp).add(configFileInfo);
-                    } catch (Exception e) {
-                        log.error(e.getMessage(), e);
-                    }
-                }
-            } else {
-                String filePath = CommonComponent.generateFilePathWithoutWs(entity.getClusterName(), entity.getGroupName(),
-                        entity.getNamespace(), null, ConfigContentType.fromName(entity.getFormat()), false);
-                try {
-                    Language language;
-                    if (StringUtils.equals(entity.getFormat(), ConfigContentType.properties.name())) {
-                        language = PropertiesLanguage.INSTANCE;
-                    } else {
-                        language = Json5Language.INSTANCE;
-                    }
-                    VirtualFile scratchFile = ScratchRootType.getInstance().createScratchFile(LocalStorage.getProject(),
-                            "wconfigws" + File.separator + filePath,
-                            language, content, ScratchFileService.Option.create_if_missing);
-                    if (vfWsPath == null && scratchFile != null) {
-                        vfWsPath = StringUtils.substringBefore(scratchFile.getPath(), "wconfigws") + "wconfigws";
-                        ans.put(entity, scratchFile);
-                    }
-                } catch (Exception e) {
-                    log.error(e.getMessage(), e);
-                }
-            }
-
-            // 将本地文件路径放到内存
-            if (StringUtils.isNotBlank(vfWsPath)) {
-                WorkspaceWatcher.doWatch(vfWsPath);
-                LocalStorage.setVirtualWorkspace(vfWsPath);
-            }
-        }
-        log.info("buildIndex success");
-        return ans;
-    }
+    // public static Map<ConfigEntity, VirtualFile> buildIndex(List<ConfigEntity> configEntities, boolean isClear) {
+    //     if (isClear) {
+    //         // 清空重建本地config
+    //         removeLocalConfig();
+    //     }
+    //     Map<ConfigEntity, VirtualFile> ans = new HashMap<>();
+    //     String vfWsPath = null;
+    //     for (ConfigEntity entity : configEntities) {
+    //         allGroup.add(entity.getGroupName());
+    //         cluster2GroupsMap.putIfAbsent(entity.getClusterName(), new TreeSet<>());
+    //         cluster2GroupsMap.get(entity.getClusterName()).add(entity.getGroupName());
+    //
+    //         String content;
+    //         if (StringUtils.equals(entity.getFormat(), ConfigContentType.properties.name())) {
+    //             PropertiesConfigEntity configEntity = (PropertiesConfigEntity) entity;
+    //             content = configEntity.getContent().entrySet().stream()
+    //                     .map(e -> e.getKey() + "=" + e.getValue())
+    //                     .collect(Collectors.joining("\n"));
+    //         } else {
+    //             TextConfigEntity textConfig = (TextConfigEntity) entity;
+    //             content = textConfig.getContent();
+    //         }
+    //
+    //         ConfigEntity.Gray gray = entity.getGray();
+    //         if (gray != null) {
+    //             List<String> grayIps = gray.getGrayIps();
+    //             for (String grayIp : grayIps) {
+    //                 String filePath = CommonComponent.generateFilePathWithoutWs(entity.getClusterName(), entity.getGroupName(),
+    //                         entity.getNamespace(), grayIp, ConfigContentType.fromName(entity.getFormat()), false);
+    //                 try {
+    //                     Language language;
+    //                     if (StringUtils.equals(entity.getFormat(), ConfigContentType.properties.name())) {
+    //                         language = PropertiesLanguage.INSTANCE;
+    //                     } else {
+    //                         language = Json5Language.INSTANCE;
+    //                     }
+    //                     VirtualFile scratchFile = ScratchRootType.getInstance().createScratchFile(LocalStorage.getProject(),
+    //                             "wconfigws" + File.separator + filePath,
+    //                             language, content, ScratchFileService.Option.create_if_missing);
+    //                     if (vfWsPath == null && scratchFile != null) {
+    //                         vfWsPath = StringUtils.substringBefore(scratchFile.getPath(), "wconfigws") + "wconfigws";
+    //                         ans.put(entity, scratchFile);
+    //                     }
+    //
+    //                     grayIp2GrayBranchName.putIfAbsent(grayIp, new HashSet<>());
+    //                     ConfigFileInfo configFileInfo = new ConfigFileInfo();
+    //                     configFileInfo.setNamespace(entity.getNamespace());
+    //                     configFileInfo.setGroup(entity.getGroupName());
+    //                     configFileInfo.setCluster(entity.getClusterName());
+    //                     configFileInfo.setGrayBranchName(gray.getGrayBranchName());
+    //                     configFileInfo.setFullPath(vfWsPath);
+    //                     grayIp2GrayBranchName.get(grayIp).add(configFileInfo);
+    //                 } catch (Exception e) {
+    //                     log.error(e.getMessage(), e);
+    //                 }
+    //             }
+    //         } else {
+    //             String filePath = CommonComponent.generateFilePathWithoutWs(entity.getClusterName(), entity.getGroupName(),
+    //                     entity.getNamespace(), null, ConfigContentType.fromName(entity.getFormat()), false);
+    //             try {
+    //                 Language language;
+    //                 if (StringUtils.equals(entity.getFormat(), ConfigContentType.properties.name())) {
+    //                     language = PropertiesLanguage.INSTANCE;
+    //                 } else {
+    //                     language = Json5Language.INSTANCE;
+    //                 }
+    //                 VirtualFile scratchFile = ScratchRootType.getInstance().createScratchFile(LocalStorage.getProject(),
+    //                         "wconfigws" + File.separator + filePath,
+    //                         language, content, ScratchFileService.Option.create_if_missing);
+    //                 if (vfWsPath == null && scratchFile != null) {
+    //                     vfWsPath = StringUtils.substringBefore(scratchFile.getPath(), "wconfigws") + "wconfigws";
+    //                     ans.put(entity, scratchFile);
+    //                 }
+    //             } catch (Exception e) {
+    //                 log.error(e.getMessage(), e);
+    //             }
+    //         }
+    //
+    //         // 将本地文件路径放到内存
+    //         if (StringUtils.isNotBlank(vfWsPath)) {
+    //             WorkspaceWatcher.doWatch(vfWsPath);
+    //             LocalStorage.setVirtualWorkspace(vfWsPath);
+    //         }
+    //     }
+    //     log.info("buildIndex success");
+    //     return ans;
+    // }
 
     private static void removeLocalConfig() {
         try {
@@ -301,25 +282,25 @@ public class CommonComponent {
         ConfigContentType contentType;
     }
 
-    public static ConfigEntity generate2ConfigEntity(File file) {
-        try {
-            ConfigFileInfo confInfo = parseFileName(file.getAbsolutePath());
-            if (StringUtils.endsWith(file.getAbsolutePath(), PROPERTIES)) {
-                LinkedHashMap<String, String> linkedHashMap = new LinkedHashMap<>();
-                for (String line : FileUtils.readLines(file, StandardCharsets.UTF_8)) {
-                    if (StringUtils.isNotBlank(line)) {
-                        linkedHashMap.put(line.split("=")[0], line.split("=")[1]);
-                    }
-                }
-                return new PropertiesConfigEntity(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), linkedHashMap);
-            } else {
-                return new TextConfigEntity(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), FileUtils.readFileToString(file, StandardCharsets.UTF_8));
-            }
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-        }
-        return null;
-    }
+    // public static ConfigEntity generate2ConfigEntity(File file) {
+    //     try {
+    //         ConfigFileInfo confInfo = parseFileName(file.getAbsolutePath());
+    //         if (StringUtils.endsWith(file.getAbsolutePath(), PROPERTIES)) {
+    //             LinkedHashMap<String, String> linkedHashMap = new LinkedHashMap<>();
+    //             for (String line : FileUtils.readLines(file, StandardCharsets.UTF_8)) {
+    //                 if (StringUtils.isNotBlank(line)) {
+    //                     linkedHashMap.put(line.split("=")[0], line.split("=")[1]);
+    //                 }
+    //             }
+    //             return new PropertiesConfigEntity(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), linkedHashMap);
+    //         } else {
+    //             return new TextConfigEntity(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), FileUtils.readFileToString(file, StandardCharsets.UTF_8));
+    //         }
+    //     } catch (Exception e) {
+    //         log.error(e.getMessage(), e);
+    //     }
+    //     return null;
+    // }
 
     private static final NotificationGroup STICKY_GROUP =
             new NotificationGroup("wconfig-helper.notification", NotificationDisplayType.STICKY_BALLOON, true);

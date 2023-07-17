@@ -1,7 +1,6 @@
 package com.github.config.helper.localstorage;
 
 import com.github.config.helper.Settings;
-import com.github.config.helper.component.CommonComponent;
 import com.google.common.base.Joiner;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -20,12 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import lombok.Data;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
@@ -585,23 +581,23 @@ public class LocalStorage {
     }
 
 
-    public static ConfigEntity getNamespace(@Nullable String cluster,
-            @Nonnull String group, @Nonnull String namespace) {
-        Collection<File> files = FileUtils.listFiles(new File(getWorkspace()),
-                new String[]{CommonComponent.PROPERTIES, CommonComponent.JSON_5}, true);
-        for (File file : files) {
-            String path = file.getPath();
-            if (StringUtils.contains(path, group) && StringUtils.contains(path, namespace)) {
-                if (StringUtils.isNotBlank(cluster) && StringUtils.contains(path, cluster)) {
-                    return CommonComponent.generate2ConfigEntity(file);
-                }
-                if (StringUtils.isBlank(cluster)) {
-                    return CommonComponent.generate2ConfigEntity(file);
-                }
-            }
-        }
-        return null;
-    }
+    // public static ConfigEntity getNamespace(@Nullable String cluster,
+    //         @Nonnull String group, @Nonnull String namespace) {
+    //     Collection<File> files = FileUtils.listFiles(new File(getWorkspace()),
+    //             new String[]{CommonComponent.PROPERTIES, CommonComponent.JSON_5}, true);
+    //     for (File file : files) {
+    //         String path = file.getPath();
+    //         if (StringUtils.contains(path, group) && StringUtils.contains(path, namespace)) {
+    //             if (StringUtils.isNotBlank(cluster) && StringUtils.contains(path, cluster)) {
+    //                 return CommonComponent.generate2ConfigEntity(file);
+    //             }
+    //             if (StringUtils.isBlank(cluster)) {
+    //                 return CommonComponent.generate2ConfigEntity(file);
+    //             }
+    //         }
+    //     }
+    //     return null;
+    // }
 
     public static Settings getSetting() {
         return ApplicationManager.getApplication().getService(Settings.class);

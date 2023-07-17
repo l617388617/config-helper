@@ -4,12 +4,11 @@ import com.github.config.helper.Settings;
 import com.github.config.helper.component.CommonComponent;
 import com.github.config.helper.localstorage.LocalStorage;
 import com.intellij.openapi.options.SearchableConfigurable;
+import javax.swing.JComponent;
 import org.apache.commons.collections.CollectionUtils;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 
 /**
  * WConfigHelperConfigurable
@@ -29,8 +28,8 @@ public class ConfigHelperConfigurable implements SearchableConfigurable {
         this.panelView.setEnableDefaultGroup(settings.isEnableDefaultGroup());
         this.panelView.setGroup(settings.getDefaultGroup());
 
-        this.panelView.setEnableGray(settings.isEnableGray());
-        this.panelView.setGrayIp(settings.getGrayIp());
+        // this.panelView.setEnableGray(settings.isEnableGray());
+        // this.panelView.setGrayIp(settings.getGrayIp());
 
         this.panelView.setSearchKeys(settings.getSearchKeys());
         if (CollectionUtils.isNotEmpty(CommonComponent.allGroup)) {
@@ -74,8 +73,8 @@ public class ConfigHelperConfigurable implements SearchableConfigurable {
         settings.setEnableDefaultGroup(panelView.isEnableDefaultGroup());
         settings.setDefaultGroup(panelView.getGroup());
 
-        settings.setEnableGray(panelView.isEnableGray());
-        settings.setGrayIp(panelView.getGrayIp());
+        // settings.setEnableGray(panelView.isEnableGray());
+        // settings.setGrayIp(panelView.getGrayIp());
 
         settings.setSearchKeys(panelView.getSearchKeys());
         settings.setClusterKeyName(panelView.getClusterKeyNameField());

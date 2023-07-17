@@ -3,32 +3,18 @@ package com.github.config.helper;
 import com.github.config.helper.component.CommonComponent;
 import com.github.config.helper.component.ConfigInfo;
 import com.github.config.helper.component.ConfigInfoManager;
-import com.github.config.helper.component.WorkspaceWatcher;
 import com.github.config.helper.component.http.ConfigCall4OpenApi;
-import com.github.config.helper.component.http.ConfigCaller;
 import com.github.config.helper.component.http.ItemKeyValueDto;
-import com.github.config.helper.component.http.res.CreateGrayResponse;
-import com.github.config.helper.component.http.res.CreateNamespaceResponse;
-import com.github.config.helper.component.http.res.NamespaceContentResponse;
 import com.github.config.helper.component.http.res4openapi.GetMasterRes;
 import com.github.config.helper.component.http.res4openapi.NoContentRes;
 import com.github.config.helper.component.json.JacksonUtil;
-import com.github.config.helper.localstorage.ConfigContentType;
-import com.github.config.helper.localstorage.ConfigEntity;
 import com.github.config.helper.localstorage.LocalStorage;
-import com.github.config.helper.localstorage.PropertiesConfigEntity;
-import com.github.config.helper.localstorage.TextConfigEntity;
 import com.github.config.helper.service.analysis.AnalysisNamespaceFormChain;
 import com.github.config.helper.views.CreateNamespaceDialog;
 import com.github.config.helper.views.CustomDiffWindow;
 import com.google.common.collect.ImmutableList;
-import com.intellij.ide.scratch.ScratchFileService;
-import com.intellij.ide.scratch.ScratchRootType;
-import com.intellij.json.json5.Json5Language;
 import com.intellij.json.psi.JsonArray;
 import com.intellij.json.psi.JsonFile;
-import com.intellij.lang.Language;
-import com.intellij.lang.properties.PropertiesLanguage;
 import com.intellij.lang.properties.psi.PropertiesFile;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -51,12 +37,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -66,9 +48,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -80,7 +60,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class ConfigShowDiffAction extends AnAction {
 
-    private static final Logger logger = Logger.getInstance(WorkspaceWatcher.class);
+    private static final Logger logger = Logger.getInstance(ConfigShowDiffAction.class);
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
@@ -120,27 +100,27 @@ public class ConfigShowDiffAction extends AnAction {
                     CommonComponent.notification(false, "配置已存在", d.getNamespace(), psiFile.getProject());
                     return;
                 }
-                ConfigEntity configEntity;
-                String format;
+                ConfigInfo.ConfigInfoBuilder builder = ConfigInfo.builder();
                 if (StringUtils.equals(d.getFormat(), CommonComponent.PROPERTIES)) {
-                    configEntity = new PropertiesConfigEntity(d.getCluster(), d.getGroup(), d.getNamespace(), new LinkedHashMap<>());
-                    format = "properties";
+                    builder.clusterName(d.getCluster())
+                            .group(d.getGroup())
+                            .namespace(d.getNamespace())
+                            .format("properties");
                 } else {
-                    configEntity = new TextConfigEntity(d.getCluster(), d.getGroup(), d.getNamespace(), "");
-                    format = "txt";
+                    builder.clusterName(d.getCluster())
+                            .group(d.getGroup())
+                            .namespace(d.getNamespace())
+                            .format("txt");
                 }
 
                 NoContentRes createRes = configCall4OpenApi.createOrUpdateMaster(key, d.getCluster(), d.getGroup(), d.getNamespace(), LocalStorage.getOAName(), Collections.emptyList());
                 if (createRes.getCode() == 200) {
-                    Map<ConfigEntity, VirtualFile> config2VfMap = CommonComponent.buildIndex(ImmutableList.of(configEntity), false);
-                    config2VfMap.entrySet().stream().findFirst().map(Map.Entry::getValue)
-                            .ifPresent(virtualFile -> {
-                                FileEditorManager.getInstance(psiFile.getProject()).openFile(virtualFile, true, true);
-                                // 通知
-                                CommonComponent.notification(true, "创建成功",
-                                        String.format("<div>%s</div><div>%s</div><div>%s</div>", d.getCluster(), d.getGroup(), namespace),
-                                        psiFile.getProject());
-                            });
+                    VirtualFile vf = ConfigInfoManager.getInstance().generateVirtualFile(psiFile.getProject(), builder.build());
+                    FileEditorManager.getInstance(psiFile.getProject()).openFile(vf, true, true);
+                    // 通知
+                    CommonComponent.notification(true, "创建成功",
+                            String.format("<div>%s</div><div>%s</div><div>%s</div>", d.getCluster(), d.getGroup(), namespace),
+                            psiFile.getProject());
                 }
             } catch (Exception e) {
                 logger.error("showCreateNamespaceDialog error", e);
@@ -334,10 +314,10 @@ public class ConfigShowDiffAction extends AnAction {
         if (psiFile instanceof PropertiesFile) {
             Properties p1 = new Properties();
             p1.load(new StringReader(f1));
-            List<ItemKeyValueDto> valueDtoList = p1.entrySet().stream().map(e -> {
+            List<ItemKeyValueDto> valueDtoList = p1.entrySet().stream().map(en -> {
                 ItemKeyValueDto itemKeyValueDto = new ItemKeyValueDto();
-                itemKeyValueDto.setItemKey(e.getKey().toString());
-                itemKeyValueDto.setItemValue(e.getValue().toString());
+                itemKeyValueDto.setItemKey(en.getKey().toString());
+                itemKeyValueDto.setItemValue(en.getValue().toString());
                 return itemKeyValueDto;
             }).collect(Collectors.toList());
             NoContentRes orUpdateMaster = ConfigCall4OpenApi.getInstance().createOrUpdateMaster(key, confInfo.getClusterName(), confInfo.getGroup(), confInfo.getNamespace(),
@@ -359,35 +339,14 @@ public class ConfigShowDiffAction extends AnAction {
                 logger.error(e1.getMessage(), e1);
                 return;
             }
-            // 提交更新 & 主干发布
-            // 如果是灰度编辑，group 需要用灰度名替换, release 也需要替换
-            if (LocalStorage.getSetting().isEnableGray() && StringUtils.isNotBlank(confInfo.getGrayIp())) {
-                String grayBranchName = CommonComponent.getGrayBranchName(confInfo.getGrayIp(), confInfo.getCluster());
-                if (StringUtils.isNotBlank(grayBranchName)) {
-                    if (CollectionUtils.isEmpty(data)) {
-                        ConfigCaller.INSTANCE.postCommitConfig(confInfo.getCluster(), grayBranchName, confInfo.getNamespace(), "default_key", f1);
-                    } else {
-                        ConfigCaller.INSTANCE.commitConfig(confInfo.getCluster(), grayBranchName, confInfo.getNamespace(), "default_key", f1);
-                    }
-                    Map<String, Object> result = ConfigCaller.INSTANCE.grayRelease(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), grayBranchName);
-                    if (NumberUtils.toInt(MapUtils.getString(result, "code")) == 200) {
-                        CommonComponent.notification(true, "灰度发布成功:" + confInfo.getGrayIp(), String.format("<div>%s</div>", confInfo.getNamespace()), psiFile.getProject());
-                    } else {
-                        CommonComponent.notification(false, "灰度发布失败:" + confInfo.getGrayIp(), String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), JacksonUtil.toJson(result)), psiFile.getProject());
-                    }
-                }
+
+            NoContentRes orUpdateMaster = ConfigCall4OpenApi.getInstance()
+                    .createOrUpdateMaster(key, confInfo.getClusterName(), confInfo.getGroup(), confInfo.getNamespace(),
+                            LocalStorage.getOAName(), ImmutableList.of(new ItemKeyValueDto("default_key", f1)));
+            if (orUpdateMaster.getCode() == 200) {
+                CommonComponent.notification(true, "主干发布成功", String.format("<div>%s</div>", confInfo.getNamespace()), psiFile.getProject());
             } else {
-                if (CollectionUtils.isEmpty(data)) {
-                    ConfigCaller.INSTANCE.postCommitConfig(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), "default_key", f1);
-                } else {
-                    ConfigCaller.INSTANCE.commitConfig(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), "default_key", f1);
-                }
-                Map<String, Object> result = ConfigCaller.INSTANCE.releaseMaster(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace());
-                if (NumberUtils.toInt(MapUtils.getString(result, "code")) == 200) {
-                    CommonComponent.notification(true, "主干发布成功", String.format("<div>%s</div>", confInfo.getNamespace()), psiFile.getProject());
-                } else {
-                    CommonComponent.notification(false, "主干发布失败", String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), JacksonUtil.toJson(result)), psiFile.getProject());
-                }
+                CommonComponent.notification(false, "主干发布失败", String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), JacksonUtil.toJson(orUpdateMaster)), psiFile.getProject());
             }
         }
     }
