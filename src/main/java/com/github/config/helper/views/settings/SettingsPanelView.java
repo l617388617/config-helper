@@ -28,8 +28,8 @@ public class SettingsPanelView {
     private JTextField oaNameField;
     private JButton buildIndexButton;
     private JTextField searchKeys;
-    private JCheckBox grayEnableCheckBox;
-    private JTextField grayIp;
+    // private JCheckBox grayEnableCheckBox;
+    // private JTextField grayIp;
     private JCheckBox enableDefaultGroup;
     private JComboBox<String> defaultGroupComboBox;
     private JTextField clusterKeyNameField;
@@ -54,9 +54,9 @@ public class SettingsPanelView {
             }
         });
         // 初始状态不开启灰度
-        grayEnableCheckBox.setSelected(false);
-        grayIp.setEnabled(false);
-        grayEnableCheckBox.addActionListener(e -> grayIp.setEnabled(grayEnableCheckBox.isSelected()));
+        // grayEnableCheckBox.setSelected(false);
+        // grayIp.setEnabled(false);
+        // grayEnableCheckBox.addActionListener(e -> grayIp.setEnabled(grayEnableCheckBox.isSelected()));
 
         // 默认开启defaultGroup = default_group
         enableDefaultGroup.setSelected(true);
@@ -69,8 +69,8 @@ public class SettingsPanelView {
         Settings settings = LocalStorage.getSetting();
         return !StringUtils.equals(oaNameField.getText(), settings.getOaName())
                 || !StringUtils.equals(searchKeys.getText(), settings.getSearchKeys())
-                || grayEnableCheckBox.isSelected() != settings.isEnableGray()
-                || !StringUtils.equals(grayIp.getText(), settings.getGrayIp())
+                // || grayEnableCheckBox.isSelected() != settings.isEnableGray()
+                // || !StringUtils.equals(grayIp.getText(), settings.getGrayIp())
                 || enableDefaultGroup.isSelected() != settings.isEnableDefaultGroup()
                 || !StringUtils.equals(this.getGroup(), settings.getDefaultGroup())
                 || !StringUtils.equals(this.getClusterKeyNameField(), settings.getClusterKeyName())
@@ -109,21 +109,21 @@ public class SettingsPanelView {
         return this.main;
     }
 
-    public boolean isEnableGray() {
-        return grayEnableCheckBox.isSelected();
-    }
-
-    public void setEnableGray(boolean enableGray) {
-        this.grayEnableCheckBox.setSelected(enableGray);
-    }
-
-    public String getGrayIp() {
-        return grayIp.getText();
-    }
-
-    public void setGrayIp(String ip) {
-        this.grayIp.setText(ip);
-    }
+    // public boolean isEnableGray() {
+    //     return grayEnableCheckBox.isSelected();
+    // }
+    //
+    // public void setEnableGray(boolean enableGray) {
+    //     this.grayEnableCheckBox.setSelected(enableGray);
+    // }
+    //
+    // public String getGrayIp() {
+    //     return grayIp.getText();
+    // }
+    //
+    // public void setGrayIp(String ip) {
+    //     this.grayIp.setText(ip);
+    // }
 
 
     public String getOaNameValue() {
@@ -158,12 +158,11 @@ public class SettingsPanelView {
         Settings settings = LocalStorage.getSetting();
         oaNameField.setText(settings.getOaName());
         searchKeys.setText(settings.getSearchKeys());
-        grayIp.setText(settings.getGrayIp());
         enableDefaultGroup.setSelected(settings.isEnableDefaultGroup());
         defaultGroupComboBox.setSelectedItem(settings.getDefaultGroup());
 
-        grayEnableCheckBox.setSelected(settings.isEnableGray());
-        grayIp.setText(settings.getGrayIp());
+        // grayEnableCheckBox.setSelected(settings.isEnableGray());
+        // grayIp.setText(settings.getGrayIp());
 
         clusterKeyNameField.setToolTipText(settings.getClusterKeyName());
         groupListField.setToolTipText(settings.getGroupList());

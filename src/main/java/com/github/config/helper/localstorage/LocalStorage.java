@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -640,6 +641,39 @@ public class LocalStorage {
 
     public static String getSearchKeys() {
         return getSetting().getSearchKeys();
+    }
+
+    public static Set<String> getClusterNameSet() {
+        Set<String> ans = new HashSet<>();
+        for (String s : getSetting().getClusterKeyName().split(";")) {
+            ans.add(s.split(",")[1]);
+        }
+        return ans;
+    }
+
+    public static Set<String> getGroupSet() {
+        return new HashSet<>(Arrays.asList(getSetting().getGroupList().split(",")));
+    }
+
+    public static String getSelectedGroup() {
+        return StringUtils.defaultIfBlank(getSetting().getDefaultGroup(), "default_group");
+    }
+
+    public static String getClusterKeyByName(String clusterName) {
+        String clusterKeyName = getSetting().getClusterKeyName();
+        if (StringUtils.isNotBlank(clusterKeyName)) {
+            for (String s : clusterKeyName.split(";")) {
+                String[] split = s.split(",");
+                if (split.length > 1 && StringUtils.equals(split[1], clusterName)) {
+                    return split[0];
+                }
+            }
+        }
+        return null;
+    }
+
+    public static String getOAName() {
+        return getSetting().getOaName();
     }
 
 }

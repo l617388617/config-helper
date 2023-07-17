@@ -26,7 +26,8 @@ import java.util.Map;
  * @author lupeng10
  * @create 2023-05-23 18:17
  */
-public class ConfigCaller extends BaseHttpCaller {
+// public class ConfigCaller extends BaseHttpCaller {
+class ConfigCaller extends BaseHttpCaller {
 
     private static final Logger log = Logger.getInstance(BaseHttpCaller.class);
 

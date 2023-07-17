@@ -36,6 +36,9 @@ public class ConfigHelperConfigurable implements SearchableConfigurable {
         if (CollectionUtils.isNotEmpty(CommonComponent.allGroup)) {
             this.panelView.initGroup(CommonComponent.allGroup);
         }
+
+        this.panelView.setClusterKeyNameField(settings.getClusterKeyName());
+        this.panelView.setGroupListField(settings.getGroupList());
     }
 
     @Override

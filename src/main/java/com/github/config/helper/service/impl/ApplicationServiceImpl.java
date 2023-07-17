@@ -2,14 +2,20 @@ package com.github.config.helper.service.impl;
 
 import com.github.config.helper.component.CommonComponent;
 import com.github.config.helper.component.CommonThreadPool;
+import com.github.config.helper.component.ConfigInfo;
+import com.github.config.helper.component.ConfigInfoManager;
+import com.github.config.helper.component.http.ConfigCall4OpenApi;
 import com.github.config.helper.component.http.ConfigCaller;
 import com.github.config.helper.component.http.res.ClusterListResponse;
 import com.github.config.helper.component.http.res.GrayIpListResponse;
 import com.github.config.helper.component.http.res.GroupListResponse;
 import com.github.config.helper.component.http.res.NamespaceContentResponse;
 import com.github.config.helper.component.http.res.NamespaceListResponse;
+import com.github.config.helper.component.http.res4openapi.GetGrayListRes;
+import com.github.config.helper.component.http.res4openapi.GetNamespaceListRes;
 import com.github.config.helper.localstorage.ConfigContentType;
 import com.github.config.helper.localstorage.ConfigEntity;
+import com.github.config.helper.localstorage.LocalStorage;
 import com.github.config.helper.localstorage.PropertiesConfigEntity;
 import com.github.config.helper.localstorage.TextConfigEntity;
 import com.github.config.helper.service.ApplicationService;
@@ -18,9 +24,11 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +60,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         if (lockState) {
             try {
-                pull();
+                pullWithOpenApi();
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
             } finally {
@@ -61,6 +69,54 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
     }
 
+    private static void pullWithOpenApi() {
+        ConfigCall4OpenApi call4OpenApi = ConfigCall4OpenApi.getInstance();
+        String clusterKeyName = LocalStorage.getSetting().getClusterKeyName();
+        String[] groupArr = LocalStorage.getSetting().getGroupList().split(",");
+        String[] keyNameArr = clusterKeyName.split(";");
+        ConfigInfoManager configInfoManager = ConfigInfoManager.getInstance();
+        Set<ConfigInfo> infoSet = new HashSet<>();
+        for (String keyName : keyNameArr) {
+            String[] split = keyName.split(",");
+            String key = split[0];
+            String name = split[1];
+            for (String group : groupArr) {
+                List<GetNamespaceListRes.DataDTO.RecordsDTO> allNamespace = call4OpenApi.getAllNamespace(key, name, group);
+                for (GetNamespaceListRes.DataDTO.RecordsDTO recordsDTO : allNamespace) {
+                    String namespace = recordsDTO.getName();
+
+                    infoSet.add(ConfigInfo.builder()
+                            .clusterKey(key)
+                            .clusterName(name)
+                            .group(group)
+                            .namespace(namespace)
+                            .master(true)
+                            .format(recordsDTO.getFormat())
+                            .build());
+                    // open-api 不支持直接获取灰度
+                    // List<GetGrayListRes.DataDTO.RecordsDTO> allGrayList = call4OpenApi.getAllGrayList(key, name, group, namespace);
+                    // for (GetGrayListRes.DataDTO.RecordsDTO grayDto : allGrayList) {
+                    //     infoSet.add(ConfigInfo.builder()
+                    //             .clusterKey(key)
+                    //             .clusterName(name)
+                    //             .group(group)
+                    //             .namespace(namespace)
+                    //             .master(false)
+                    //             .grayName(grayDto.getGrayName())
+                    //             .grayBranchName(grayDto.getGrayBranchName())
+                    //             .grayVersion(grayDto.getGrayVersion())
+                    //             .grayIps(grayDto.getGrayIps())
+                    //             .format(recordsDTO.getFormat())
+                    //             .content(grayDto.getConfigValue())
+                    //             .build());
+                    // }
+                }
+            }
+        }
+        configInfoManager.setConfigInfoSet(infoSet);
+    }
+
+    @Deprecated
     private static void pull() {
         ConfigCaller configCaller = new ConfigCaller();
         int currPage = 1;

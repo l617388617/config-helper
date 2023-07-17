@@ -1,7 +1,8 @@
 package com.github.config.helper.component;
 
-import com.github.config.helper.component.http.ConfigCaller;
-import com.github.config.helper.component.http.res.NamespaceContentResponse;
+import com.github.config.helper.component.http.ConfigCall4OpenApi;
+import com.github.config.helper.component.http.ItemKeyValueDto;
+import com.github.config.helper.component.http.res4openapi.GetMasterRes;
 import com.github.config.helper.localstorage.ConfigContentType;
 import com.github.config.helper.localstorage.ConfigEntity;
 import com.github.config.helper.localstorage.LocalStorage;
@@ -199,55 +200,70 @@ public class CommonComponent {
     }
 
 
-    public static void writeConfigContent2File(String cluster, String group, String namespace, String grayIp, String targetFilePath, @NotNull Project project) {
-        group = StringUtils.isBlank(group) ? LocalStorage.getDefaultGroup() : group;
-        List<String> filePathList = WorkspaceWatcher.getPathByNamespace(namespace);
-        for (String filePath : filePathList) {
-            ConfigFileInfo configFileInfo = parseFileName(filePath);
-            if (!StringUtils.equals(configFileInfo.getCluster(), cluster)) {
-                continue;
-            }
-            if (!StringUtils.equals(configFileInfo.getGrayIp(), grayIp)) {
-                continue;
-            }
-            if (!StringUtils.equals(configFileInfo.getGroup(), group)) {
-                continue;
-            }
-            if (!StringUtils.equals(configFileInfo.getNamespace(), namespace)) {
-                continue;
-            }
-            NamespaceContentResponse content;
-            String grayBranchName = CommonComponent.getGrayBranchName(grayIp, cluster);
-            if (StringUtils.isNotBlank(grayBranchName)) {
-                content = ConfigCaller.INSTANCE
-                        .getNamespaceContent(configFileInfo.getCluster(), grayBranchName, configFileInfo.getNamespace());
-            } else {
-                content = ConfigCaller.INSTANCE
-                        .getNamespaceContent(configFileInfo.getCluster(), configFileInfo.getGroup(), configFileInfo.getNamespace());
-            }
-
-            String contentStr;
-            if (configFileInfo.getContentType() == ConfigContentType.properties) {
-                contentStr = Joiner.on("\n").join(content.getData().stream().map(d -> d.getItemKey() + "=" + d.getItemValue()).collect(Collectors.toList()));
-            } else {
-                if (CollectionUtils.isEmpty(content.getData())) {
-                    contentStr = "";
-                } else {
-                    contentStr = content.getData().get(0).getItemValue();
-                }
-            }
-            Language language = configFileInfo.getContentType() == ConfigContentType.properties ? PropertiesLanguage.INSTANCE : Json5Language.INSTANCE;
-            VirtualFile scratchFile = ScratchRootType.getInstance().createScratchFile(project,
-                    targetFilePath, language, contentStr, ScratchFileService.Option.create_if_missing);
-
-            // try {
-            //     new File(targetFilePath).deleteOnExit();
-            //     FileUtils.write(new File(targetFilePath), contentStr, StandardCharsets.UTF_8);
-            // } catch (IOException e) {
-            //     e.printStackTrace();
-            // }
-        }
-    }
+    // public static void writeConfigContent2File(String cluster, String group, String namespace, String grayIp, String targetFilePath, @NotNull Project project) {
+    //     final String finalGroup = StringUtils.isBlank(group) ? LocalStorage.getDefaultGroup() : group;
+    //     ConfigInfoManager.getInstance().getConfigInfoByNamespace(namespace, c -> {
+    //         if (!StringUtils.equals(c.getClusterName(), cluster)) {
+    //             return false;
+    //         }
+    //         if (!StringUtils.equals(c.getGroup(), finalGroup)) {
+    //             return false;
+    //         }
+    //
+    //     })
+    //
+    //
+    //     List<String> filePathList = WorkspaceWatcher.getPathByNamespace(namespace);
+    //     for (String filePath : filePathList) {
+    //         ConfigFileInfo configFileInfo = parseFileName(filePath);
+    //         if (!StringUtils.equals(configFileInfo.getCluster(), cluster)) {
+    //             continue;
+    //         }
+    //         if (!StringUtils.equals(configFileInfo.getGrayIp(), grayIp)) {
+    //             continue;
+    //         }
+    //         if (!StringUtils.equals(configFileInfo.getGroup(), group)) {
+    //             continue;
+    //         }
+    //         if (!StringUtils.equals(configFileInfo.getNamespace(), namespace)) {
+    //             continue;
+    //         }
+    //         // NamespaceContentResponse content;
+    //         // String grayBranchName = CommonComponent.getGrayBranchName(grayIp, cluster);
+    //         // if (StringUtils.isNotBlank(grayBranchName)) {
+    //         //     content = ConfigCaller.INSTANCE
+    //         //             .getNamespaceContent(configFileInfo.getCluster(), grayBranchName, configFileInfo.getNamespace());
+    //         // } else {
+    //         //     content = ConfigCaller.INSTANCE
+    //         //             .getNamespaceContent(configFileInfo.getCluster(), configFileInfo.getGroup(), configFileInfo.getNamespace());
+    //         // }
+    //
+    //         String clusterKey = LocalStorage.getClusterKeyByName(configFileInfo.getCluster());
+    //         GetMasterRes masterRes = ConfigCall4OpenApi.getInstance().getMaster(clusterKey, configFileInfo.getCluster(), configFileInfo.getGroup(), configFileInfo.getNamespace());
+    //         List<ItemKeyValueDto> data = masterRes.getData();
+    //
+    //         String contentStr;
+    //         if (configFileInfo.getContentType() == ConfigContentType.properties) {
+    //             contentStr = Joiner.on("\n").join(data.stream().map(d -> d.getItemKey() + "=" + d.getItemValue()).collect(Collectors.toList()));
+    //         } else {
+    //             if (CollectionUtils.isEmpty(data)) {
+    //                 contentStr = "";
+    //             } else {
+    //                 contentStr = data.get(0).getItemValue();
+    //             }
+    //         }
+    //         Language language = configFileInfo.getContentType() == ConfigContentType.properties ? PropertiesLanguage.INSTANCE : Json5Language.INSTANCE;
+    //         VirtualFile scratchFile = ScratchRootType.getInstance().createScratchFile(project,
+    //                 targetFilePath, language, contentStr, ScratchFileService.Option.create_if_missing);
+    //
+    //         // try {
+    //         //     new File(targetFilePath).deleteOnExit();
+    //         //     FileUtils.write(new File(targetFilePath), contentStr, StandardCharsets.UTF_8);
+    //         // } catch (IOException e) {
+    //         //     e.printStackTrace();
+    //         // }
+    //     }
+    // }
 
     public static String generateFilePath(String cluster, String group, String namespace, String grayIp,
             ConfigContentType contentType, boolean isDiff) {
@@ -271,39 +287,7 @@ public class CommonComponent {
         return fileName;
     }
 
-    public static ConfigFileInfo parseFileName(String fileName) {
-        ConfigFileInfo configFileInfo = new ConfigFileInfo();
 
-        String fullNamespace = fileName;
-        String workspace = LocalStorage.getWorkspace();
-        if (StringUtils.startsWith(fileName, workspace)) {
-            fullNamespace = fileName.substring(workspace.length() + 1);
-        }
-        if (StringUtils.contains(fullNamespace, "wconfigws" + File.separator)) {
-            fullNamespace = StringUtils.substringAfter(fullNamespace, "wconfigws" + File.separator);
-        }
-
-        if (StringUtils.endsWith(fullNamespace, PROPERTIES)) {
-            configFileInfo.setContentType(ConfigContentType.properties);
-        } else {
-            configFileInfo.setContentType(ConfigContentType.txt);
-        }
-
-        fullNamespace = StringUtils.substringBeforeLast(fullNamespace, ".");
-        String[] split = fullNamespace.split(delimiter);
-        for (int i = 0; i < split.length; i++) {
-            if (i == 0) {
-                configFileInfo.setCluster(split[i]);
-            } else if (i == 1) {
-                configFileInfo.setGroup(split[i]);
-            } else if (i == 2) {
-                configFileInfo.setNamespace(split[i]);
-            } else if (i == 3) {
-                configFileInfo.setGrayIp(split[i]);
-            }
-        }
-        return configFileInfo;
-    }
 
     @Data
     @EqualsAndHashCode

@@ -1,11 +1,17 @@
 package com.github.config.helper;
 
 import com.github.config.helper.component.CommonComponent;
+import com.github.config.helper.component.ConfigInfo;
+import com.github.config.helper.component.ConfigInfoManager;
 import com.github.config.helper.component.WorkspaceWatcher;
+import com.github.config.helper.component.http.ConfigCall4OpenApi;
 import com.github.config.helper.component.http.ConfigCaller;
+import com.github.config.helper.component.http.ItemKeyValueDto;
 import com.github.config.helper.component.http.res.CreateGrayResponse;
 import com.github.config.helper.component.http.res.CreateNamespaceResponse;
 import com.github.config.helper.component.http.res.NamespaceContentResponse;
+import com.github.config.helper.component.http.res4openapi.GetMasterRes;
+import com.github.config.helper.component.http.res4openapi.NoContentRes;
 import com.github.config.helper.component.json.JacksonUtil;
 import com.github.config.helper.localstorage.ConfigContentType;
 import com.github.config.helper.localstorage.ConfigEntity;
@@ -46,11 +52,13 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.swing.JComponent;
@@ -64,7 +72,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * WConfigShowDiffAction
+ * ConfigShowDiffAction
  * 打开diff比较，可以提交
  *
  * @author lupeng10
@@ -97,8 +105,18 @@ public class ConfigShowDiffAction extends AnAction {
     private void showCreateNamespaceDialog(PsiFile psiFile, String namespace) {
         new CreateNamespaceDialog(psiFile.getProject(), namespace, d -> {
             try {
-                NamespaceContentResponse response = ConfigCaller.INSTANCE.getNamespaceContent(d.getCluster(), d.getGroup(), d.getNamespace());
-                if (CollectionUtils.isNotEmpty(response.getData())) {
+                if (StringUtils.isBlank(LocalStorage.getOAName())) {
+                    CommonComponent.notification(false, "OAName未配置", d.getCluster(), psiFile.getProject());
+                    return;
+                }
+                String key = LocalStorage.getClusterKeyByName(d.getCluster());
+                if (StringUtils.isBlank(key)) {
+                    CommonComponent.notification(false, "未找到ClusterKey", d.getCluster(), psiFile.getProject());
+                    return;
+                }
+                ConfigCall4OpenApi configCall4OpenApi = ConfigCall4OpenApi.getInstance();
+                GetMasterRes res = configCall4OpenApi.getMaster(key, d.getCluster(), d.getGroup(), d.getNamespace());
+                if (CollectionUtils.isNotEmpty(res.getData())) {
                     CommonComponent.notification(false, "配置已存在", d.getNamespace(), psiFile.getProject());
                     return;
                 }
@@ -112,9 +130,8 @@ public class ConfigShowDiffAction extends AnAction {
                     format = "txt";
                 }
 
-                CreateNamespaceResponse createRes = ConfigCaller.INSTANCE.createNamespace(d.getCluster(), d.getGroup(), d.getNamespace(), d.getDesc(), format);
+                NoContentRes createRes = configCall4OpenApi.createOrUpdateMaster(key, d.getCluster(), d.getGroup(), d.getNamespace(), LocalStorage.getOAName(), Collections.emptyList());
                 if (createRes.getCode() == 200) {
-                    ConfigCaller.INSTANCE.releaseMaster(d.getCluster(), d.getGroup(), d.getNamespace());
                     Map<ConfigEntity, VirtualFile> config2VfMap = CommonComponent.buildIndex(ImmutableList.of(configEntity), false);
                     config2VfMap.entrySet().stream().findFirst().map(Map.Entry::getValue)
                             .ifPresent(virtualFile -> {
@@ -143,45 +160,41 @@ public class ConfigShowDiffAction extends AnAction {
             logger.info("namespace解析为空");
             return;
         }
-        List<String> pathList = WorkspaceWatcher.getPathByNamespace(namespace);
-        if (CollectionUtils.isEmpty(pathList)) {
-            logger.info("根据Namespace未找到对应的本地config文件，引导创建");
-            // 提示创建新的config
+        Settings setting = LocalStorage.getSetting();
+        ConfigInfoManager configInfoManager = ConfigInfoManager.getInstance();
+        Set<String> clusterNameSet = LocalStorage.getClusterNameSet();
+        Set<String> groupSet = LocalStorage.getGroupSet();
+        String defaultGroup = LocalStorage.getDefaultGroup();
+
+        ConfigInfo configInfo = configInfoManager.getConfigInfoByNamespace(namespace, c -> {
+            if (!clusterNameSet.contains(c.getClusterName())) {
+                return false;
+            }
+            if (StringUtils.isNotBlank(defaultGroup) && !StringUtils.equals(c.getGroup(), defaultGroup)) {
+                return false;
+            }
+            if (!groupSet.contains(c.getGroup())) {
+                return false;
+            }
+            if (setting.isEnableGray()) {
+                if (c.isMaster()) {
+                    return false;
+                }
+                if (StringUtils.isNotBlank(setting.getGrayIp()) &&
+                        !setting.getGrayIp().contains(setting.getGrayIp())) {
+                    return false;
+                }
+            }
+            return true;
+        }).orElse(null);
+
+        if (configInfo == null) {
             showCreateNamespaceDialog(psiFile, namespace);
+            logger.info("根据namespace未找到configInfo");
             return;
         }
-        for (String path : pathList) {
-            CommonComponent.ConfigFileInfo confInfo = CommonComponent.parseFileName(path);
-            Settings setting = LocalStorage.getSetting();
-            if (setting.isEnableDefaultGroup()
-                    && StringUtils.isNotBlank(setting.getDefaultGroup())
-                    && !StringUtils.contains(path, setting.getDefaultGroup())) {
-                continue;
-            }
-            if (!setting.isEnableGray()) {
-                // 灰度编辑没有打开不展示灰度的配置
-                if (StringUtils.isNotBlank(confInfo.getGrayIp())) {
-                    continue;
-                }
-            } else {
-                // 灰度编辑打开，如果配置了ip则根据ip过滤，没有填不过滤
-                String grayIp = StringUtils.trim(setting.getGrayIp());
-                if (StringUtils.isNotBlank(grayIp) && !StringUtils.contains(path, grayIp)) {
-                    continue;
-                }
-            }
-            String path1 = StringUtils.substringAfter(path, "wconfigws");
-            String pathName = File.separator + "wconfigws" + File.separator + path1;
-            VirtualFile vf = ScratchFileService.getInstance().findFile(ScratchRootType.getInstance(),
-                    pathName, ScratchFileService.Option.existing_only);
-            // VirtualFile vf = LocalFileSystem.getInstance().findFileByIoFile(new File(path));
-            if (vf == null) {
-                logger.info(String.format("根据path: %s 未能找到VirtualFile, fullPath: %s", pathName, path));
-                continue;
-            }
-            FileEditorManager.getInstance(psiFile.getProject()).openFile(vf, true, true);
-            return;
-        }
+        VirtualFile virtualFile = configInfoManager.generateVirtualFile(project, configInfo);
+        FileEditorManager.getInstance(psiFile.getProject()).openFile(virtualFile, true, true);
     }
 
     private void showDiff(PsiFile psiFile) throws IOException {
@@ -191,25 +204,17 @@ public class ConfigShowDiffAction extends AnAction {
             logger.warn(String.format("虚拟文件路径 %s 不是以homeDir %s 开头", configFilePath, LocalStorage.getWorkspace()));
             return;
         }
-        CommonComponent.ConfigFileInfo confInfo = CommonComponent.parseFileName(configFilePath);
+        ConfigInfoManager configInfoManager = ConfigInfoManager.getInstance();
+        ConfigInfo configInfo = configInfoManager.parseFileName(configFilePath);
 
-        String diffFilePath = "wconfigws" + File.separator + CommonComponent.generateFilePathWithoutWs(confInfo.getCluster(),
-                confInfo.getGroup(), confInfo.getNamespace(), confInfo.getGrayIp(), confInfo.getContentType(), true);
-
-        CommonComponent.writeConfigContent2File(confInfo.getCluster(), confInfo.getGroup(),
-                confInfo.getNamespace(), confInfo.getGrayIp(), diffFilePath, psiFile.getProject());
+        VirtualFile diffConfigVf = ConfigInfoManager.getInstance().generateVirtualFile(psiFile.getProject(), configInfo, null, true);
 
         LocalFileSystem fileSystem = LocalFileSystem.getInstance();
-        fileSystem.refreshIoFiles(ImmutableList.of(new File(diffFilePath)));
         VirtualFile configVf = fileSystem.findFileByIoFile(new File(configFilePath));
-        // VirtualFile diffConfigVf = fileSystem.findFileByIoFile(new File(diffFilePath));
-
-        // diffFilePath
-        VirtualFile diffConfigVf = ScratchFileService.getInstance().findFile(ScratchRootType.getInstance(),
-                diffFilePath, ScratchFileService.Option.existing_only);
 
         if (configVf == null || diffConfigVf == null) {
-            logger.warn(String.format("【本地config文件或diff文件未获取到cluster:%s group:%s namespace:%s】", confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace()));
+            logger.warn(String.format("【本地config文件或diff文件未获取到cluster:%s group:%s namespace:%s】", configInfo.getClusterName(),
+                    configInfo.getGroup(), configInfo.getNamespace()));
             return;
         }
         CustomDiffWindow diffWindow = new CustomDiffWindow(psiFile.getProject(), configVf, diffConfigVf);
@@ -218,8 +223,13 @@ public class ConfigShowDiffAction extends AnAction {
         // 点击提交按钮的处理逻辑
         diffWindow.onOkAction(e -> {
             try {
+                if (!StringUtils.equals(configInfo.getGroup(), "default_group")) {
+                    // todo 复制到剪切板
+                    diffWindow.close();
+                }
+
                 // 保存所有未保存的文件
-                commitConfig(e, configVf, diffConfigVf, psiFile, confInfo);
+                commitConfig(e, configVf, diffConfigVf, psiFile, configInfo);
                 // 删除临时创建的diff文件
                 ApplicationManager.getApplication().runWriteAction((ThrowableComputable<VirtualFile, IOException>) () -> {
                     if (diffConfigVf.isDirectory()) {
@@ -234,53 +244,53 @@ public class ConfigShowDiffAction extends AnAction {
                 logger.error(ex.getMessage(), ex);
             }
         });
-        diffWindow.onGrayAction(e -> {
-            // 点击创建灰度的处理逻辑
-            CreateGrayDialog dialog = new CreateGrayDialog(psiFile.getProject(), ips -> {
-                try {
-                    List<String> ipList = Arrays.stream(ips.split(",")).filter(StringUtils::isNotBlank).collect(Collectors.toList());
-                    if (CollectionUtils.isEmpty(ipList)) {
-                        logger.warn("创建灰度配置-灰度ip没有填写");
-                        return;
-                    }
-                    CreateGrayResponse response = ConfigCaller.INSTANCE.creatGray(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), ipList);
-                    String branchName;
-                    if (response.getCode() == 200
-                            && StringUtils.isNotBlank((branchName = response.getData().getBranchName()))) {
-                        // 创建本地灰度配置
-                        for (String ip : ipList) {
-                            CommonComponent.setGrayIp2GrayBranchName(ip, confInfo);
-                            Language language;
-                            if (confInfo.getContentType() == ConfigContentType.properties) {
-                                language = PropertiesLanguage.INSTANCE;
-                            } else {
-                                language = Json5Language.INSTANCE;
-                            }
-
-                            String grayFilePath = "wconfigws" + File.separator + CommonComponent.generateFilePathWithoutWs(confInfo.getCluster(),
-                                    confInfo.getGroup(), confInfo.getNamespace(), ip, confInfo.getContentType(), false);
-                            ScratchRootType.getInstance().createScratchFile(psiFile.getProject(), grayFilePath, language,
-                                    psiFile.getContainingFile().getText(), ScratchFileService.Option.create_if_missing);
-                        }
-                        // 发布灰度
-                        ConfigCaller.INSTANCE.grayRelease(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), branchName);
-                        // 通知
-                        CommonComponent.notification(true, "灰度创建成功",
-                                String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), StringUtils.join(ips, ",")),
-                                psiFile.getProject());
-                    } else {
-                        // 通知
-                        CommonComponent.notification(false, "灰度创建失败",
-                                String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), StringUtils.join(ips, ",")),
-                                psiFile.getProject());
-                    }
-                } catch (Exception ex) {
-                    logger.error(ex.getMessage(), ex);
-                }
-            });
-            dialog.showAndGet();
-            diffWindow.close();
-        });
+        // diffWindow.onGrayAction(e -> {
+        //     // 点击创建灰度的处理逻辑
+        //     CreateGrayDialog dialog = new CreateGrayDialog(psiFile.getProject(), ips -> {
+        //         try {
+        //             List<String> ipList = Arrays.stream(ips.split(",")).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+        //             if (CollectionUtils.isEmpty(ipList)) {
+        //                 logger.warn("创建灰度配置-灰度ip没有填写");
+        //                 return;
+        //             }
+        //             CreateGrayResponse response = ConfigCaller.INSTANCE.creatGray(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), ipList);
+        //             String branchName;
+        //             if (response.getCode() == 200
+        //                     && StringUtils.isNotBlank((branchName = response.getData().getBranchName()))) {
+        //                 // 创建本地灰度配置
+        //                 for (String ip : ipList) {
+        //                     CommonComponent.setGrayIp2GrayBranchName(ip, confInfo);
+        //                     Language language;
+        //                     if (confInfo.getContentType() == ConfigContentType.properties) {
+        //                         language = PropertiesLanguage.INSTANCE;
+        //                     } else {
+        //                         language = Json5Language.INSTANCE;
+        //                     }
+        //
+        //                     String grayFilePath = "wconfigws" + File.separator + CommonComponent.generateFilePathWithoutWs(confInfo.getCluster(),
+        //                             confInfo.getGroup(), confInfo.getNamespace(), ip, confInfo.getContentType(), false);
+        //                     ScratchRootType.getInstance().createScratchFile(psiFile.getProject(), grayFilePath, language,
+        //                             psiFile.getContainingFile().getText(), ScratchFileService.Option.create_if_missing);
+        //                 }
+        //                 // 发布灰度
+        //                 ConfigCaller.INSTANCE.grayRelease(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), branchName);
+        //                 // 通知
+        //                 CommonComponent.notification(true, "灰度创建成功",
+        //                         String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), StringUtils.join(ips, ",")),
+        //                         psiFile.getProject());
+        //             } else {
+        //                 // 通知
+        //                 CommonComponent.notification(false, "灰度创建失败",
+        //                         String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), StringUtils.join(ips, ",")),
+        //                         psiFile.getProject());
+        //             }
+        //         } catch (Exception ex) {
+        //             logger.error(ex.getMessage(), ex);
+        //         }
+        //     });
+        //     dialog.showAndGet();
+        //     diffWindow.close();
+        // });
     }
 
     static class CreateGrayDialog extends DialogWrapper {
@@ -312,78 +322,30 @@ public class ConfigShowDiffAction extends AnAction {
     }
 
     private void commitConfig(ActionEvent e, VirtualFile configVf, VirtualFile diffConfigVf,
-            PsiFile psiFile, CommonComponent.ConfigFileInfo confInfo) throws IOException {
+            PsiFile psiFile, ConfigInfo confInfo) throws IOException {
         FileDocumentManager.getInstance().saveAllDocuments();
         // 逐行比较两个文件的变更内容，将变更的内容取出来提交变更
         String f1 = new String(configVf.contentsToByteArray(), StandardCharsets.UTF_8);
         String f2 = new String(diffConfigVf.contentsToByteArray(), StandardCharsets.UTF_8);
-        List<NamespaceContentResponse.DataDTO> data = ConfigCaller.INSTANCE
-                .getNamespaceContent(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace())
-                .getData();
+        String key = LocalStorage.getClusterKeyByName(confInfo.getClusterName());
+        GetMasterRes masterRes = ConfigCall4OpenApi.getInstance().getMaster(key, confInfo.getClusterName(), confInfo.getGroup(), confInfo.getNamespace());
+        List<ItemKeyValueDto> data = masterRes.getData();
         // 提交文件，如果是properties拿到变化的key然后只提交变化的key
         if (psiFile instanceof PropertiesFile) {
             Properties p1 = new Properties();
             p1.load(new StringReader(f1));
-            Properties p2 = new Properties();
-            p2.load(new StringReader(f2));
-            Map<String, String> add = new HashMap<>();
-            Map<String, String> delete = new HashMap<>();
-            Map<String, String> modify = new HashMap<>();
-            p2.forEach((k, v) -> {
-                if (p1.containsKey(k)) {
-                    if (!StringUtils.equals(p1.get(k).toString(), p2.get(k).toString())) {
-                        modify.put(k.toString(), p1.get(k).toString());
-                    }
-                } else {
-                    delete.put(k.toString(), v.toString());
-                }
-            });
-            p1.forEach((k, v) -> {
-                if (!p2.containsKey(k)) {
-                    add.put(k.toString(), v.toString());
-                }
-            });
-            // 提交新增
-            add.forEach((k, v) -> ConfigCaller.INSTANCE.addConfig(confInfo.getCluster(), confInfo.getGroup(),
-                    confInfo.getNamespace(), k, v));
-            // 提交删除
-            delete.forEach((k, v) ->
-                    data.stream().filter(d -> StringUtils.equals(d.getItemKey(), k))
-                            .map(NamespaceContentResponse.DataDTO::getId)
-                            .findFirst()
-                            .ifPresent(id -> ConfigCaller.INSTANCE.delete(confInfo.getCluster(), id))
-            );
-            // 如果是灰度编辑，group 需要用灰度名替换, release 也需要替换
-            String grayBranchName = CommonComponent.getGrayBranchName(confInfo.getGrayIp(), confInfo.getCluster());
-            if (LocalStorage.getSetting().isEnableGray() && StringUtils.isNotBlank(confInfo.getGrayIp())) {
-                if (StringUtils.isNotBlank(grayBranchName)) {
-                    // 提交修改 & 主干发布
-                    if (CollectionUtils.isEmpty(data)) {
-                        modify.forEach((k, v) -> ConfigCaller.INSTANCE.postCommitConfig(confInfo.getCluster(), grayBranchName, confInfo.getNamespace(), k, v));
-                    } else {
-                        modify.forEach((k, v) -> ConfigCaller.INSTANCE.commitConfig(confInfo.getCluster(), grayBranchName, confInfo.getNamespace(), k, v));
-                    }
-
-                    Map<String, Object> result = ConfigCaller.INSTANCE.grayRelease(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace(), grayBranchName);
-                    if (NumberUtils.toInt(MapUtils.getString(result, "code")) == 200) {
-                        CommonComponent.notification(true, "灰度发布成功:" + confInfo.getGrayIp(), String.format("<div>%s</div>", confInfo.getNamespace()), psiFile.getProject());
-                    } else {
-                        CommonComponent.notification(false, "灰度发布失败:" + confInfo.getGrayIp(), String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), JacksonUtil.toJson(result)), psiFile.getProject());
-                    }
-                }
+            List<ItemKeyValueDto> valueDtoList = p1.entrySet().stream().map(e -> {
+                ItemKeyValueDto itemKeyValueDto = new ItemKeyValueDto();
+                itemKeyValueDto.setItemKey(e.getKey().toString());
+                itemKeyValueDto.setItemValue(e.getValue().toString());
+                return itemKeyValueDto;
+            }).collect(Collectors.toList());
+            NoContentRes orUpdateMaster = ConfigCall4OpenApi.getInstance().createOrUpdateMaster(key, confInfo.getClusterName(), confInfo.getGroup(), confInfo.getNamespace(),
+                    LocalStorage.getOAName(), valueDtoList);
+            if (orUpdateMaster.getCode() == 200) {
+                CommonComponent.notification(true, "主干发布成功", String.format("<div>%s</div>", confInfo.getNamespace()), psiFile.getProject());
             } else {
-                // 提交修改 & 主干发布
-                if (CollectionUtils.isEmpty(data)) {
-                    modify.forEach((k, v) -> ConfigCaller.INSTANCE.postCommitConfig(confInfo.getCluster(), grayBranchName, confInfo.getNamespace(), k, v));
-                } else {
-                    modify.forEach((k, v) -> ConfigCaller.INSTANCE.commitConfig(confInfo.getCluster(), grayBranchName, confInfo.getNamespace(), k, v));
-                }
-                Map<String, Object> result = ConfigCaller.INSTANCE.releaseMaster(confInfo.getCluster(), confInfo.getGroup(), confInfo.getNamespace());
-                if (NumberUtils.toInt(MapUtils.getString(result, "code")) == 200) {
-                    CommonComponent.notification(true, "主干发布成功", String.format("<div>%s</div>", confInfo.getNamespace()), psiFile.getProject());
-                } else {
-                    CommonComponent.notification(false, "主干发布失败", String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), JacksonUtil.toJson(result)), psiFile.getProject());
-                }
+                CommonComponent.notification(false, "主干发布失败", String.format("<div>%s</div><div>%s</div>", confInfo.getNamespace(), JacksonUtil.toJson(orUpdateMaster)), psiFile.getProject());
             }
         } else if (psiFile instanceof JsonFile) {
             try {

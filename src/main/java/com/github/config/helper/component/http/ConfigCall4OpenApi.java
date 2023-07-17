@@ -5,8 +5,10 @@ import com.github.config.helper.component.http.res4openapi.GetMasterRes;
 import com.github.config.helper.component.http.res4openapi.GetNamespaceListRes;
 import com.github.config.helper.component.http.res4openapi.NoContentRes;
 import com.github.config.helper.component.json.JacksonUtil;
+import com.google.common.util.concurrent.RateLimiter;
 import com.intellij.openapi.diagnostic.Logger;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -24,6 +26,9 @@ public class ConfigCall4OpenApi extends BaseHttpCaller {
     private static final Logger log = Logger.getInstance(BaseHttpCaller.class);
 
     private static volatile ConfigCall4OpenApi instance;
+
+    private static final RateLimiter getMasterRateLimiter = RateLimiter.create(10);
+    private static final RateLimiter getGrayRateLimiter = RateLimiter.create(10);
 
     public static ConfigCall4OpenApi getInstance() {
         if (instance == null) {
@@ -44,9 +49,24 @@ public class ConfigCall4OpenApi extends BaseHttpCaller {
         return headers;
     }
 
+    public List<GetNamespaceListRes.DataDTO.RecordsDTO> getAllNamespace(String clusterKey, String clusterName, String groupName) {
+        int currPage = 1;
+        int pageSize = 200;
+        int totalPage = 0;
+        List<GetNamespaceListRes.DataDTO.RecordsDTO> ans = new ArrayList<>();
+        do {
+            GetNamespaceListRes res = getNamespaceList(clusterKey, clusterName, groupName, currPage, pageSize);
+            GetNamespaceListRes.DataDTO data = res.getData();
+            totalPage = data.getPages();
+            ans.addAll(data.getRecords());
+            currPage++;
+        } while (currPage <= totalPage);
+        return ans;
+    }
 
     public GetNamespaceListRes getNamespaceList(String clusterKey, String clusterName, String groupName,
             int currentPage, int pageSize) {
+        getMasterRateLimiter.acquire();
         String url = "https://portal-wconfig.58corp.com/api/namespace/page";
         Map<String, String> params = new HashMap<>();
         params.put("clusterKey", clusterKey);
@@ -59,9 +79,24 @@ public class ConfigCall4OpenApi extends BaseHttpCaller {
         return JacksonUtil.fromJson(resStr, GetNamespaceListRes.class);
     }
 
+    public List<GetGrayListRes.DataDTO.RecordsDTO> getAllGrayList(String clusterKey, String clusterName, String groupName, String namespaceName) {
+        int currPage = 1;
+        int pageSize = 200;
+        int totalPage = 0;
+        List<GetGrayListRes.DataDTO.RecordsDTO> ans = new ArrayList<>();
+        do {
+            GetGrayListRes res = getGrayList(clusterKey, clusterName, groupName, namespaceName, currPage, pageSize);
+            GetGrayListRes.DataDTO data = res.getData();
+            totalPage = data.getPages();
+            ans.addAll(data.getRecords());
+            currPage++;
+        } while (currPage <= totalPage);
+        return ans;
+    }
 
     public GetGrayListRes getGrayList(String clusterKey, String clusterName, String groupName, String namespaceName,
             int currentPage, int pageSize) {
+        getGrayRateLimiter.acquire();
         String url = "https://portal-wconfig.58corp.com/api/grayscale/page";
         Map<String, String> params = new HashMap<>();
         params.put("clusterKey", clusterKey);

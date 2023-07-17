@@ -2,6 +2,7 @@ package com.github.config.helper.component.http;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * ItemKeyValueDto
@@ -11,6 +12,7 @@ import lombok.Data;
  */
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class ItemKeyValueDto {
 
     private String itemKey;
