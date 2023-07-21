@@ -180,13 +180,11 @@ public class ConfigShowDiffAction extends AnAction {
     private void showDiff(PsiFile psiFile) throws IOException {
         String configFilePath = psiFile.getVirtualFile().getPath();
         logger.info(String.format("开始showDiff方法打开diff窗口filePath:%s", configFilePath));
-        if (!StringUtils.startsWith(configFilePath, LocalStorage.getVirtualWorkspace())) {
-            logger.warn(String.format("虚拟文件路径 %s 不是以homeDir %s 开头", configFilePath, LocalStorage.getWorkspace()));
-            return;
-        }
+
         ConfigInfoManager configInfoManager = ConfigInfoManager.getInstance();
         ConfigInfo configInfo = configInfoManager.parseFileName(configFilePath);
-
+        configInfo.setMaster(true);
+        configInfo.setClusterKey(LocalStorage.getClusterKeyByName(configInfo.getClusterName()));
         VirtualFile diffConfigVf = ConfigInfoManager.getInstance().generateVirtualFile(psiFile.getProject(), configInfo, null, true);
 
         LocalFileSystem fileSystem = LocalFileSystem.getInstance();
