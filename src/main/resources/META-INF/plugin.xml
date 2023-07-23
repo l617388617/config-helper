@@ -1,6 +1,6 @@
 <idea-plugin>
-    <id>com.github.config.wconfig-helper</id>
-    <name>wconfig-helper</name>
+    <id>com.github.config.config-helper</id>
+    <name>config-helper</name>
     <vendor email="lupeng10@58.com" url="https://ishare.58corp.com/personal/article?id=174322">lupeng10</vendor>
 
     <description><![CDATA[
@@ -32,8 +32,8 @@
 
     <actions>
         <action class="com.github.config.helper.ConfigShowDiffAction"
-                id="WConfigShowDiffAction" text="WConfigShowDiffAction"
-                description="WConfigShowDiffAction">
+                id="ConfigShowDiffAction" text="ConfigShowDiffAction"
+                description="ConfigShowDiffAction">
             <add-to-group group-id="FileMenu" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="alt w"/>
         </action>
