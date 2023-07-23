@@ -12,6 +12,7 @@ import com.intellij.ide.scratch.ScratchRootType;
 import com.intellij.json.json5.Json5Language;
 import com.intellij.lang.Language;
 import com.intellij.lang.properties.PropertiesLanguage;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
@@ -30,6 +31,8 @@ import org.apache.commons.lang3.StringUtils;
  * @create 2023-07-14 18:23
  */
 public class ConfigInfoManager {
+
+    private static final Logger logger = Logger.getInstance(ConfigInfoManager.class);
 
     private static final Set<ConfigInfo> infoSet = new HashSet<>();
 
@@ -114,7 +117,18 @@ public class ConfigInfoManager {
         }
         String fullPath = Joiner.on(File.separator).join("wconfigws", fileName);
         return ScratchRootType.getInstance()
-                .createScratchFile(project, fullPath, language, content, ScratchFileService.Option.create_if_missing);
+                        .createScratchFile(project, fullPath, language, content, ScratchFileService.Option.create_if_missing);
+
+        // CompletableFuture<VirtualFile> future = CompletableFuture.supplyAsync(() -> ScratchRootType.getInstance()
+        //                 .createScratchFile(project, fullPath, language, content, ScratchFileService.Option.create_if_missing)
+        //         , CommonThreadPool.pool);
+        // future.join();
+        // try {
+        //     return future.get();
+        // } catch (Exception e) {
+        //     logger.error(e.getMessage(), e);
+        // }
+        // return null;
     }
 
 

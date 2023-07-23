@@ -69,6 +69,7 @@ public class ConfigGotoEditorHandler implements GotoDeclarationHandler {
             }
             return CollectionUtils.isNotEmpty(ans) ? ans.toArray(new PsiElement[0]) : null;
         } catch (Exception e) {
+            logger.error(e.getMessage(), e);
             // ignore
         }
         return null;
