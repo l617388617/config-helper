@@ -4,15 +4,14 @@ import com.github.config.helper.Settings;
 import com.github.config.helper.component.CommonComponent;
 import com.github.config.helper.localstorage.LocalStorage;
 import com.intellij.openapi.options.SearchableConfigurable;
+import javax.swing.JComponent;
 import org.apache.commons.collections.CollectionUtils;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-
 /**
- * WConfigHelperConfigurable
+ * ConfigHelperConfigurable
  * setting 窗口中的配置界面
  *
  * @author: lupeng10
@@ -40,7 +39,7 @@ public class ConfigHelperConfigurable implements SearchableConfigurable {
 
     @Override
     public @NotNull @NonNls String getId() {
-        return "com.bj58.plugin.wconfig-helper";
+        return "com.github.plugin.wconfig-helper";
     }
 
     @Override

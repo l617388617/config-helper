@@ -1,10 +1,10 @@
 <idea-plugin>
     <id>com.github.config.config-helper</id>
     <name>config-helper</name>
-    <vendor email="lupeng10@58.com" url="https://ishare.58corp.com/personal/article?id=174322">lupeng10</vendor>
+    <vendor email="617388617@qq.com" url="https://ishare.58corp.com/personal/article?id=174322">卢鹏</vendor>
 
     <description><![CDATA[
-    Help 58 developers quickly open WConfig and edit it in intellij idea, and show the changes when they submit config<br>
+    Help developers quickly open WConfig and edit it in intellij idea, and show the changes when they submit config<br>
     ]]></description>
 
     <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html

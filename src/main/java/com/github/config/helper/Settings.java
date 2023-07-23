@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
  * @create: 2023-05-24 11:37
  */
 @Data
-@State(name = "com.bj58.plugin.wconfig-helper", storages = {@Storage(value = "wconfig-helper.xml")})
+@State(name = "com.github.plugin.wconfig-helper", storages = {@Storage(value = "config-helper.xml")})
 public class Settings implements PersistentStateComponent<Settings> {
 
     private String cookie;
